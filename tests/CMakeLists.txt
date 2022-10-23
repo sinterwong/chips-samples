@@ -5,12 +5,15 @@ INCLUDE_DIRECTORIES(
     ${PROJECT_INCLUDE_DIR}
     ${DNN_PATH}/include
     ${APPSDK_PATH}/include
+    ${APPSDK_PATH}/include/vio
+    ${APPSDK_PATH}/include/libmm
 )
 
 LINK_DIRECTORIES(
     ${DNN_LIB_PATH}
-    ${APPSDK_PATH}/lib/hbbpu
     ${APPSDK_PATH}/lib
+    ${APPSDK_PATH}/lib/hbbpu
+    ${APPSDK_PATH}/lib/hbmedia
 )
 
 LINK_LIBRARIES(
@@ -18,6 +21,7 @@ LINK_LIBRARIES(
     pthread
     module_logger
     ${BPU_libs}
+    ${HB_MEDIA_libs}
     rt
     dl
 )

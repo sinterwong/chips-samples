@@ -38,7 +38,7 @@ private:
     // 左子节点 = 2 * 父节点，右子节点 = 2 * 父节点 + 1
     while (2 * k <= data.size() - 1) {
       int j = 2 * k; // 用左节点初始化
-      if (j < data.size() - 1 && data[j] < data[j + 1]) {
+      if (j < size() && data[j] < data[j + 1]) {
         // 此时存在右节点并且右节点大于左节点
         j++;
       }
@@ -56,6 +56,10 @@ public:
   };
   // template <typename Container> MaxHeap(Container _data) {
   // }
+
+  int size() {
+    return data.size() - 1;
+  }
 
   void insert(Item d) {
     data.emplace_back(d);

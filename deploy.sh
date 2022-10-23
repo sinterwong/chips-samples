@@ -1,1 +1,0 @@
-scp -P 9202 test_yolo ../../../tests/models/yolov5_640x640_nv12.bin root@114.242.23.39:/root

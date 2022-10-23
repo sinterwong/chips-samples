@@ -7,6 +7,17 @@
 #include <string>
 #include <vector>
 
+#define HB_CHECK_SUCCESS(value, errmsg)                                \
+	do {                                                               \
+		/*value can be call of function*/                                  \
+		int ret_code = value;                                           \
+		if (ret_code != 0) {                                             \
+			printf("[BPU ERROR] %s, error code:%d\n", errmsg, ret_code); \
+			return ret_code;                                               \
+		}                                                                \
+	} while (0);
+
+
 struct DetectionRet {
   int classId;             // 类别
   float confidence;        // 置信度
@@ -93,7 +104,63 @@ int main(int argc, char **argv) {
   hbDNNHandle_t dnn_handle;
   hbDNNGetModelHandle(&dnn_handle, packed_dnn_handle, model_name_list[0]);
 
-  // Step4: 准备输入数据
+  // Step4: 准备输入数据（用于存放yuv数据）
+  /*
+	hbDNNTensor input_tensor;
+	// resize后送给bpu运行的图像
+	hbDNNTensor *input_tensor_resized = &handle->m_resized_tensors[handle->m_cur_resized_tensor];
+
+	memset(&input_tensor, '\0', sizeof(hbDNNTensor));
+	input_tensor.properties.tensorLayout = HB_DNN_LAYOUT_NCHW;
+	// 张量类型为Y通道及UV通道为输入的图片, 方便直接使用 vpu出来的y和uv分离的数据
+	input_tensor.properties.tensorType = HB_DNN_IMG_TYPE_NV12_SEPARATE; // 用于Y和UV分离的场景，主要为我们摄像头数据通路场景
+
+	// 填充 input_tensor.sysMem 成员变量 Y 分量
+	input_tensor.sysMem[0].virAddr = input_data->addr[0];
+	input_tensor.sysMem[0].phyAddr = input_data->paddr[0];
+	input_tensor.sysMem[0].memSize = input_data->stride_size * input_data->height;
+
+	// 填充 input_tensor.data_ext 成员变量， UV 分量
+	input_tensor.sysMem[1].virAddr = input_data->addr[1];
+	input_tensor.sysMem[1].phyAddr = input_data->paddr[1];
+	input_tensor.sysMem[1].memSize = (input_data->stride_size * input_data->height) / 2;
+
+#if 0 // test
+	if (nv12_index++ % 100 == 0) {
+		sprintf(nv12_file_name, "1920x1080_nv12_input_%d.yuv", nv12_index++);
+		x3_dumpToFile2plane(nv12_file_name, input_data->addr[0], input_data->addr[1],
+			input_tensor.sysMem[0].memSize, input_tensor.sysMem[1].memSize);
+	}
+#endif
+
+	// HB_DNN_IMG_TYPE_NV12_SEPARATE 类型的 layout 为 (1, 3, h, w)
+	input_tensor.properties.validShape.numDimensions = 4;
+	input_tensor.properties.validShape.dimensionSize[0] = 1;						// N
+	input_tensor.properties.validShape.dimensionSize[1] = 3;						// C
+	input_tensor.properties.validShape.dimensionSize[2] = input_data->height;		// H
+	input_tensor.properties.validShape.dimensionSize[3] = input_data->stride_size; 	// W
+	input_tensor.properties.alignedShape = input_tensor.properties.validShape;		// 已满足跨距对齐要求，直接赋值
+
+	// 准备模型输入数据（用于存放模型输入大小的数据）
+	input_tensor_resized->properties.tensorLayout = HB_DNN_LAYOUT_NCHW;
+	input_tensor_resized->properties.tensorType = HB_DNN_IMG_TYPE_NV12_SEPARATE;
+
+	// NCHW
+	input_tensor_resized->properties.validShape.numDimensions = 4;
+	input_tensor_resized->properties.validShape.dimensionSize[0] = 1;
+	input_tensor_resized->properties.validShape.dimensionSize[1] = 3;
+	input_tensor_resized->properties.validShape.dimensionSize[2] = model_h;
+	input_tensor_resized->properties.validShape.dimensionSize[3] = model_w;
+	input_tensor_resized->properties.alignedShape = input_tensor_resized->properties.validShape;		// 已满足对齐要求
+
+	// 将数据Resize到模型输入大小
+	hbDNNResizeCtrlParam ctrl;
+	HB_DNN_INITIALIZE_RESIZE_CTRL_PARAM(&ctrl);
+	hbDNNTaskHandle_t task_handle;
+	HB_CHECK_SUCCESS(
+		hbDNNResize(&task_handle, input_tensor_resized, &input_tensor, NULL, &ctrl),
+		"hbDNNResize failed");
+  */
   hbDNNTensor input;
   hbDNNTensorProperties input_properties;
   hbDNNGetInputTensorProperties(&input_properties, dnn_handle, 0);

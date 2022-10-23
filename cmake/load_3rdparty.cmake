@@ -11,7 +11,7 @@ MACRO(LOAD_X3)
     SET(APPSDK_PATH "~/.horizon/ddk/xj3_aarch64/appsdk/appuser/")
 
     SET(DNN_LIB_PATH ${DNN_PATH}/lib)
-    SET(APPSDK_LIB_PATH ${APPSDK_PATH}/lib/hbbpu)
     SET(BPU_libs dnn cnn_intf hbrt_bernoulli_aarch64)
+    SET(HB_MEDIA_libs vio hbmedia avcodec avformat avutil)
 
 ENDMACRO()
