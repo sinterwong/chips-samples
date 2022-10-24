@@ -40,10 +40,10 @@ DEFINE_string(model_path, "", "Specify the model path.");
   memcpy(_p, _buf, _len);                                                      \
   (_p) += (_len);
 
-struct DetectionRet {
-  int classId;               // 类别
-  float confidence;          // 置信度
+struct alignas(float) DetectionRet {
   std::array<float, 4> bbox; // 框
+  float confidence;          // 置信度
+  float classId;             // 类别
 };
 
 static inline bool compare(DetectionRet const &a, DetectionRet const &b) {
@@ -567,8 +567,9 @@ int main(int argc, char **argv) {
       input_tensor_resized.properties.validShape.dimensionSize[1] = 3;
       input_tensor_resized.properties.validShape.dimensionSize[2] = inputHeight;
       input_tensor_resized.properties.validShape.dimensionSize[3] = inputWidth;
+      // 已满足对齐要求
       input_tensor_resized.properties.alignedShape =
-          input_tensor_resized.properties.validShape; // 已满足对齐要求
+          input_tensor_resized.properties.validShape;
 
       // 将数据Resize到模型输入大小
       hbDNNResizeCtrlParam ctrl;
@@ -600,33 +601,44 @@ int main(int argc, char **argv) {
       hbSysFlushMem(&(output->sysMem[0]), HB_SYS_MEM_CACHE_INVALIDATE);
       float *out = reinterpret_cast<float *>(output->sysMem[0].virAddr);
       int *shape = output->properties.validShape.dimensionSize;
-      std::cout << shape[0] << std::endl;
-      std::cout << shape[1] << std::endl;
-      std::cout << shape[2] << std::endl;
+      std::cout << shape[0] << ", " << shape[1] << ", " << shape[2]
+                << std::endl;
 
-      std::unordered_map<int, std::vector<DetectionRet>> m;
-      std::vector<DetectionRet> bboxes;
+      std::unordered_map<int, std::vector<DetectionRet>> cls2bbox;
 
       int numAnchors = shape[1];
       int num = shape[2];
       for (int i = 0; i < numAnchors * num; i += num) {
-        if (out[i + 4] <= 0.3)
+        // std::cout << out[i] << ", " << out[i+1] << ", " << out[i+2] << ", "
+        // << out[i+3] << ", " << out[i+4] << ", " << out[i+5] << std::endl;
+        if (out[i + 4] <= 0.4) {
           continue;
+        }
         DetectionRet det;
+        det.confidence = out[i + 4];
         det.classId = std::distance(
             out + i + 5, std::max_element(out + i + 5, out + i + num));
-        int real_idx = i + 5 + det.classId;
-        det.confidence = out[real_idx];
-        memcpy(&det, &output[i], 5 * sizeof(float));
-        if (m.count(det.classId) == 0)
-          m.emplace(det.classId, std::vector<DetectionRet>());
-        m[det.classId].push_back(det);
+
+        memcpy(&det, &out[i], 5 * sizeof(float));
+        if (cls2bbox.count(det.classId) == 0)
+          cls2bbox.emplace(det.classId, std::vector<DetectionRet>());
+        cls2bbox[det.classId].push_back(det);
       }
 
-      nms(bboxes, m);
-      // rect 还原成原始大小
-      renderOriginShape(bboxes, {1920, 1080, 3}, {640, 640, 3});
+      std::vector<DetectionRet> bboxes;
+      nms(bboxes, cls2bbox);
 
+      // rect 还原成原始大小
+      renderOriginShape(bboxes, {picWidth, picHeight, 3},
+                        {inputWidth, inputHeight, 3});
+
+      for (auto &bbox : bboxes) {
+        for (auto c : bbox.bbox) {
+          std::cout << c << ", ";
+        }
+        std::cout << bbox.confidence << std::endl;
+      }
+      
       HB_VDEC_ReleaseFrame(vdecChn, &stFrameInfo);
     }
 
@@ -643,7 +655,9 @@ int main(int argc, char **argv) {
 
   // 释放内存
   hbSysFreeMem(&(input_tensor.sysMem[0]));
+  hbSysFreeMem(&(input_tensor.sysMem[1]));
   hbSysFreeMem(&(input_tensor_resized.sysMem[0]));
+  hbSysFreeMem(&(input_tensor_resized.sysMem[1]));
   hbSysFreeMem(&(output->sysMem[0]));
 
   // 释放模型
