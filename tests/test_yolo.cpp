@@ -18,10 +18,10 @@
 	} while (0);
 
 
-struct DetectionRet {
-  int classId;             // 类别
-  float confidence;        // 置信度
+struct alignas(float) DetectionRet {
   std::array<float, 4> bbox; // 框
+  float confidence;          // 置信度
+  float classId;             // 类别
 };
 
 static inline bool compare(DetectionRet const &a, DetectionRet const &b) {
